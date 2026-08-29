@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Salesforce Enterprise Web Portal Demo (Debug)</title>
+  <script type="module"
+    src="https://prod-apnortheast-a.online.tableau.com/javascripts/api/tableau.embedding.3.latest.min.js"></script>
+  <style>
+    body {
+      font-family: monospace;
+      margin: 20px;
+      background: #f4f6f9;
+    }
+
+    .header {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    #vizContainer {
+      margin-top: 20px;
+      background: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      min-height: 750px;
+      border: 1px dashed #ccc;
+    }
+
+    #debugPanel {
+      margin-top: 20px;
+      background: #1e1e1e;
+      color: #00ff00;
+      padding: 15px;
+      border-radius: 8px;
+      height: 200px;
+      overflow-y: auto;
+    }
+
+    .error {
+      color: #ff5555;
+    }
+
+    .success {
+      color: #55ffff;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <h2>Salesforce / Tableau TA Demo Portal (Debug)</h2>
+    <p>Target User: data2coordi@gmail.com</p>
+  </div>
+
+  <div id="debugPanel">
+    <div>[System] デバッグパネル起動...</div>
+  </div>
+
+  <div id="vizContainer">
+    <p style="color:#888;">ダッシュボード描画待機中...</p>
+  </div>
+
+  <script>
+    // デバッグログ出力用関数
+    function logMessage(msg, type = 'normal') {
+      const panel = document.getElementById('debugPanel');
+      const time = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.textContent = `[${time}] ${msg}`;
+      if (type === 'error') div.className = 'error';
+      if (type === 'success') div.className = 'success';
+      panel.appendChild(div);
+      panel.scrollTop = panel.scrollHeight;
+      console.log(`[${time}] ${msg}`);
+    }
+
+    async function initPortal() {
+      const container = document.getElementById('vizContainer');
+      logMessage('initPortal() 開始');
+
+      try {
+        logMessage('1. APIエンドポイント (/api/get-tableau-token) へリクエスト送信...');
+        const response = await fetch('/api/get-tableau-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targetUser: 'data2coordi@gmail.com' })
+        });
+
+        logMessage(`2. レスポンス受信 (Status: ${response.status})`);
+
+        if (!response.ok) {
+          throw new Error(`HTTP Error Status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.token) {
+          throw new Error('JWTトークンがレスポンスに含まれていません');
+        }
+        logMessage(`3. JWTトークン取得成功 (先頭10文字: ${data.token.substring(0, 10)}...)`, 'success');
+
+        container.innerHTML = ''; // コンテナをクリア
+        logMessage('4. <tableau-viz> コンポーネントを生成中...');
+
+        const viz = document.createElement('tableau-viz');
+        viz.setAttribute('id', 'tableauViz');
+
+        const targetSrc = 'https://prod-apnortheast-a.online.tableau.com/t/h95mori-a84c708353/views/my/1_1';
+        logMessage(`5. ダッシュボードURLセット: ${targetSrc}`);
+
+        viz.setAttribute('src', targetSrc);
+        viz.setAttribute('token', data.token);
+        viz.setAttribute('toolbar', 'bottom');
+        viz.setAttribute('width', '100%');
+        viz.setAttribute('height', '750px');
+
+        // イベントリスナーの追加
+        viz.addEventListener('firstinteractive', () => {
+          logMessage('★ SUCCESS: ダッシュボードの描画(firstinteractive)が完了しました', 'success');
+        });
+
+        viz.addEventListener('vizloaderror', (e) => {
+          logMessage(`★ ERROR (vizloaderror): 描画エラー発生。詳細: ${JSON.stringify(e.detail)}`, 'error');
+        });
+
+        container.appendChild(viz);
+        logMessage('6. <tableau-viz> を DOM に追加完了。描画を待機します...');
+
+      } catch (err) {
+        logMessage(`CRITICAL ERROR: ${err.message}`, 'error');
+        container.innerHTML = `<p style="color:red;">エラーが発生しました: ${err.message}</p>`;
+      }
+    }
+
+    window.onload = initPortal;
+  </script>
+</body>
+
+</html>
