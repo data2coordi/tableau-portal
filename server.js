@@ -11,18 +11,18 @@ app.post('/api/get-tableau-token', (req, res) => {
   const { targetUser } = req.body;
   const user = targetUser || 'data2coordi@gmail.com';
 
-  // 【デバッグ出力】サーバー側の .env 読み込み状況を可視化
-  console.log('=== [DEBUG] LOADED .ENV VALUES ===');
+  // 1. サーバー側で実際に読み込んでいる .env の値をログ出力 [source: 2]
+  console.log('=== [DEBUG ENV PRINT] ===');
   console.log('CLIENT_ID   :', process.env.TABLEAU_CLIENT_ID);
   console.log('SECRET_ID   :', process.env.TABLEAU_SECRET_ID);
   console.log('SECRET_VALUE:', process.env.TABLEAU_SECRET_VALUE);
   console.log('SITE_NAME   :', process.env.TABLEAU_SITE_NAME);
   console.log('POD_URL     :', process.env.TABLEAU_POD_URL);
-  console.log('==================================');
+  console.log('=========================');
 
   const payload = {
     iss: process.env.TABLEAU_CLIENT_ID,
-    sub: user, // ドロップダウンで選択されたユーザーコンテキスト (RLS評価用)[cite: 4]
+    sub: user, // ユーザーコンテキストをセットして動的 RLS を評価 [source: 4]
     aud: 'tableau',
     exp: Math.floor(Date.now() / 1000) + (5 * 60),
     jti: uuidv4(),
@@ -38,7 +38,7 @@ app.post('/api/get-tableau-token', (req, res) => {
   try {
     const token = jwt.sign(payload, process.env.TABLEAU_SECRET_VALUE, { header: headers });
 
-    // 画面側のデバッグパネルにも読み込まれているキー情報を開示して返却
+    // 2. フロントエンドにも読み込まれているキー情報を返却して可視化 [source: 2]
     res.json({
       token,
       siteName: process.env.TABLEAU_SITE_NAME,
@@ -58,4 +58,4 @@ app.post('/api/get-tableau-token', (req, res) => {
 });
 
 const PORT = process.env.PORT || 80;
-app.listen(PORT, () => console.log(`Debug Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
