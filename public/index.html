@@ -3,15 +3,17 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>Salesforce Enterprise Web Portal Demo</title>
-  <script type="module"
-    src="https://prod-apnortheast-a.online.tableau.com/javascripts/api/tableau.embedding.3.latest.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Salesforce Enterprise Web Portal Demo - Tableau TA</title>
+  <!-- Tableau Embedding API v3 (推奨グローバルCDN) -->
+  <script type="module" src="https://embedding.tableauusercontent.com/tableau.embedding.3.latest.min.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       margin: 0;
       padding: 20px;
       background: #f4f6f9;
+      color: #333;
     }
 
     .header {
@@ -22,28 +24,74 @@
       margin-bottom: 20px;
     }
 
-    /* 2ペインのレイアウト設定 */
+    .header h1 {
+      margin: 0 0 10px 0;
+      color: #0176d3;
+      font-size: 24px;
+    }
+
+    .header p {
+      margin: 0 0 15px 0;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .user-control {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #eef4fe;
+      padding: 12px 16px;
+      border-radius: 6px;
+      border: 1px solid #cce0ff;
+    }
+
+    .user-control label {
+      font-weight: bold;
+      font-size: 14px;
+      color: #004085;
+    }
+
+    .user-control select {
+      padding: 6px 12px;
+      font-size: 14px;
+      border-radius: 4px;
+      border: 1px solid #b8daff;
+      width: 280px;
+    }
+
+    .user-control button {
+      padding: 7px 18px;
+      background: #0176d3;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
     .portal-container {
       display: flex;
       gap: 20px;
     }
 
     .sidebar {
-      width: 300px;
+      width: 320px;
       background: #fff;
-      padding: 15px;
+      padding: 20px;
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      flex-shrink: 0;
     }
 
-    .main-content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
+    .sidebar h3 {
+      margin-top: 0;
+      font-size: 16px;
+      border-bottom: 2px solid #0176d3;
+      padding-bottom: 8px;
+      color: #0176d3;
     }
 
-    /* ダッシュボードリストのスタイル */
     .dashboard-list {
       list-style: none;
       padding: 0;
@@ -54,16 +102,12 @@
       padding: 12px 15px;
       margin-bottom: 8px;
       background: #f8f9fa;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+      border: 1px solid #e9ecef;
+      border-radius: 6px;
       cursor: pointer;
-      transition: background 0.2s;
-      font-weight: bold;
-      color: #333;
-    }
-
-    .dashboard-list li:hover {
-      background: #e2e6ea;
+      font-weight: 600;
+      font-size: 14px;
+      color: #495057;
     }
 
     .dashboard-list li.active {
@@ -72,195 +116,276 @@
       border-color: #0176d3;
     }
 
-    /* Salesforce Blue にハイライト */
+    .main-content {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      min-width: 0;
+    }
 
     #vizContainer {
       background: #fff;
-      padding: 10px;
+      padding: 15px;
       border-radius: 8px;
-      min-height: 750px;
-      border: 1px dashed #ccc;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      min-height: 500px;
+      border: 1px solid #e0e0e0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .placeholder-text {
+      color: #888;
+      font-size: 15px;
+      text-align: center;
+    }
+
+    /* ログパネルを常に視認可能に配置 */
+    .debug-container {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+
+    .debug-title {
+      color: #569cd6;
+      font-weight: bold;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #333;
+      padding-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
     }
 
     #debugPanel {
-      background: #1e1e1e;
-      color: #00ff00;
-      padding: 15px;
-      border-radius: 8px;
-      height: 150px;
+      height: 180px;
       overflow-y: auto;
-      font-family: monospace;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
 
-    .error {
-      color: #ff5555;
+    .log-item {
+      line-height: 1.4;
+      word-break: break-all;
     }
 
-    .success {
-      color: #55ffff;
+    .log-time {
+      color: #808080;
+      margin-right: 8px;
+    }
+
+    .log-info {
+      color: #d4d4d4;
+    }
+
+    .log-success {
+      color: #4ec9b0;
+      font-weight: bold;
+    }
+
+    .log-error {
+      color: #f44747;
+      font-weight: bold;
     }
   </style>
 </head>
 
 <body>
-  <div class="header">
-    <h2>Salesforce / Tableau TA Demo Portal</h2>
-    <p>このポータルは Connected Apps (JWT) を利用した埋め込みと、動的 RLS をデモします。</p>
 
-    <div
-      style="display: flex; align-items: center; gap: 10px; background: #f0f8ff; padding: 10px; border-radius: 4px; border: 1px solid #cce5ff;">
-      <label for="userSelect"><strong>Simulate Login User (RLSテスト用):</strong></label>
-      <select id="userSelect" style="padding: 5px; font-size: 14px; width: 250px;">
-        <option value="h95mori@gmail.com">h95mori@gmail.com (All Access)</option>
-        <option value="data2coordi@gmail.com">data2coordi@gmail.com (Restricted)</option>
+  <div class="header">
+    <h1>Salesforce / Tableau Technical Architect Demo Portal</h1>
+    <p>Connected Apps (JWT) 認証、Tableau REST API (動的ビュー取得)、および 行レベルセキュリティ (RLS) の実証環境</p>
+
+    <div class="user-control">
+      <label for="userSelect">Simulate Login User (RLSテスト用):</label>
+      <select id="userSelect">
+        <option value="h95mori@gmail.com">h95mori@gmail.com (All Access User)</option>
+        <option value="data2coordi@gmail.com">data2coordi@gmail.com (Restricted User)</option>
       </select>
-      <button onclick="applyUserChange()"
-        style="padding: 6px 15px; background: #0176d3; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
-        ユーザーを切り替えて再認証
-      </button>
+      <button onclick="switchUserAndReload()">ユーザーを切り替えて再認証</button>
     </div>
   </div>
 
   <div class="portal-container">
     <div class="sidebar">
-      <h3>Dashboards</h3>
+      <h3>Available Dashboards</h3>
       <ul id="dashboardList" class="dashboard-list">
+        <li class="placeholder-text" id="statusListText">読み込み中...</li>
       </ul>
     </div>
 
     <div class="main-content">
-      <div id="debugPanel">
-        <div>[System] デバッグパネル起動...</div>
+      <div id="vizContainer">
+        <div class="placeholder-text">左側のリストから表示するダッシュボードを選択してください。</div>
       </div>
 
-      <div id="vizContainer">
-        <p style="color:#888; text-align:center; padding-top: 20px;">左側のメニューからダッシュボードを選択してください。</p>
+      <div class="debug-container">
+        <div class="debug-title">
+          <span>SYSTEM ARCHITECTURE & AUTH DEBUG LOG</span>
+          <span style="cursor:pointer; color:#888;" onclick="clearLog()">[Clear Log]</span>
+        </div>
+        <div id="debugPanel"></div>
       </div>
     </div>
   </div>
 
   <script>
-    // ▼ 要件4対応: 表示したいダッシュボードのリストを定義します ▼
-    // ご自身の Tableau Online 上の URL (Shareリンク等) に書き換えてください。
-    const DASHBOARDS = [
-      { id: '1', name: 'Sales Overview', url: 'https://prod-apnortheast-a.online.tableau.com/t/h95mori-a84c708353/views/my/1_1' },
-      { id: '2', name: 'Regional Performance', url: 'https://prod-apnortheast-a.online.tableau.com/t/h95mori-a84c708353/views/Sample_Regional/Dashboard1' },
-      { id: '3', name: 'Executive Summary', url: 'https://prod-apnortheast-a.online.tableau.com/t/h95mori-a84c708353/views/Sample_Exec/Summary' }
-    ];
+    let currentJwtToken = null;
+    let currentSelectedUrl = null;
 
-    let globalJwtToken = null;
-
-    // デバッグログ出力
-    function logMessage(msg, type = 'normal') {
+    function log(msg, type = 'info') {
       const panel = document.getElementById('debugPanel');
+      if (!panel) return;
       const time = new Date().toLocaleTimeString();
-      const div = document.createElement('div');
-      div.textContent = `[${time}] ${msg}`;
-      if (type === 'error') div.className = 'error';
-      if (type === 'success') div.className = 'success';
-      panel.appendChild(div);
-      panel.scrollTop = panel.scrollHeight; // 自動スクロール
+      const item = document.createElement('div');
+      item.className = 'log-item';
+
+      let typeClass = 'log-info';
+      if (type === 'success') typeClass = 'log-success';
+      if (type === 'error') typeClass = 'log-error';
+
+      item.innerHTML = `<span class="log-time">[${time}]</span><span class="${typeClass}">${msg}</span>`;
+      panel.appendChild(item);
+      panel.scrollTop = panel.scrollHeight;
     }
 
-    // JWTトークンの取得
-    async function fetchToken(targetUser) {
-      logMessage(`1. ユーザー [${targetUser}] としてトークン取得リクエストを送信...`);
+    function clearLog() {
+      document.getElementById('debugPanel').innerHTML = '';
+    }
+
+    // JSエラーをログパネルにキャッチさせる
+    window.onerror = function (msg, url, lineNo, columnNo, error) {
+      log(`[Uncaught JS Error] ${msg} at line ${lineNo}`, 'error');
+      return false;
+    };
+
+    // JWT取得処理
+    async function fetchJwtToken(username) {
+      log(`[Auth Step 1] JWT発行要求送信: Target Sub = ${username}`);
       try {
-        const response = await fetch('/api/get-tableau-token', {
+        const res = await fetch('/api/get-tableau-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ targetUser: targetUser })
+          body: JSON.stringify({ targetUser: username })
         });
 
-        if (!response.ok) throw new Error(`HTTP Error Status: ${response.status}`);
-        const data = await response.json();
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
-        if (!data.token) throw new Error('JWTトークンがレスポンスに含まれていません');
-
-        globalJwtToken = data.token;
-        logMessage(`2. JWTトークン取得成功 (Sub: ${targetUser})`, 'success');
+        currentJwtToken = data.token;
+        log(`[Auth Step 1 OK] JWT取得成功`, 'success');
+        return data.token;
       } catch (err) {
-        logMessage(`CRITICAL ERROR: トークン取得失敗 - ${err.message}`, 'error');
+        log(`[Auth Step 1 FAIL] JWT取得エラー: ${err.message}`, 'error');
         throw err;
       }
     }
 
-    // サイドバーにダッシュボードリストを描画
-    function renderDashboardList() {
+    // REST API ダッシュボード一覧取得処理
+    async function fetchDashboards() {
+      log(`[REST API Step 2] /api/get-dashboards を呼び出し中...`);
       const listContainer = document.getElementById('dashboardList');
-      listContainer.innerHTML = '';
 
-      DASHBOARDS.forEach(dashboard => {
-        const li = document.createElement('li');
-        li.textContent = dashboard.name;
-        li.onclick = () => loadTableauViz(dashboard.url, li);
-        listContainer.appendChild(li);
-      });
-      logMessage('3. ダッシュボード一覧をサイドバーに描画しました。');
+      try {
+        const res = await fetch('/api/get-dashboards', { method: 'POST' });
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || `HTTP Status ${res.status}`);
+        }
+
+        const dashboards = data.dashboards;
+        listContainer.innerHTML = '';
+
+        if (!dashboards || dashboards.length === 0) {
+          listContainer.innerHTML = '<li style="color:#888;">利用可能なダッシュボードがありません</li>';
+          log(`[REST API Step 2 WARN] ダッシュボードが 0 件です`, 'error');
+          return;
+        }
+
+        dashboards.forEach((dash, index) => {
+          const li = document.createElement('li');
+          li.textContent = dash.name;
+          li.onclick = () => selectDashboard(dash.url, li);
+          listContainer.appendChild(li);
+
+          if (index === 0) {
+            selectDashboard(dash.url, li);
+          }
+        });
+
+        log(`[REST API Step 2 OK] ${dashboards.length} 件のダッシュボードを描画しました`, 'success');
+
+      } catch (err) {
+        log(`[REST API Step 2 FAIL] 一覧取得に失敗: ${err.message}`, 'error');
+        listContainer.innerHTML = `<li style="color:red; padding:10px;">エラー: ${err.message}</li>`;
+      }
     }
 
-    // 指定されたURLのダッシュボードを描画
-    function loadTableauViz(targetSrc, clickedElement) {
-      if (!globalJwtToken) {
-        logMessage('エラー: トークンが取得できていません。', 'error');
+    function selectDashboard(url, element) {
+      if (!currentJwtToken) {
+        log(`[Viz Error] Valid JWT token is missing`, 'error');
         return;
       }
 
-      // 選択状態のUI更新
+      currentSelectedUrl = url;
       document.querySelectorAll('.dashboard-list li').forEach(el => el.classList.remove('active'));
-      clickedElement.classList.add('active');
+      if (element) element.classList.add('active');
 
-      logMessage(`4. ダッシュボード切り替え: ${targetSrc}`);
+      log(`[Embedding v3] View表示要求: ${url}`);
 
       const container = document.getElementById('vizContainer');
-      container.innerHTML = ''; // 既存のVizを破棄
+      container.innerHTML = '';
 
-      // 新しい <tableau-viz> 要素を作成
       const viz = document.createElement('tableau-viz');
-      viz.setAttribute('src', targetSrc);
-      viz.setAttribute('token', globalJwtToken);
+      viz.setAttribute('src', url);
+      viz.setAttribute('token', currentJwtToken);
       viz.setAttribute('toolbar', 'bottom');
       viz.setAttribute('width', '100%');
-      viz.setAttribute('height', '750px');
+      viz.setAttribute('height', '700px');
 
       viz.addEventListener('firstinteractive', () => {
-        logMessage(`★ SUCCESS: ダッシュボード描画完了`, 'success');
+        log(`[Embedding v3 Event] 描画完了 (firstinteractive)`, 'success');
       });
 
-      viz.addEventListener('vizloaderror', (e) => {
-        logMessage(`★ ERROR: 描画エラー発生 - ${JSON.stringify(e.detail)}`, 'error');
+      viz.addEventListener('vizloaderror', (evt) => {
+        log(`[Embedding v3 Event Error] 描画エラー: ${JSON.stringify(evt.detail)}`, 'error');
       });
 
       container.appendChild(viz);
-      logMessage('5. DOM に追加しました。描画を待機中...');
     }
 
-    // ユーザー切り替えボタン押下時
-    async function applyUserChange() {
+    async function switchUserAndReload() {
       const selectedUser = document.getElementById('userSelect').value;
-      const container = document.getElementById('vizContainer');
-      container.innerHTML = '<p style="color:#888; text-align:center; padding-top: 20px;">ユーザーを切り替え中... 左側のメニューから再度選択してください。</p>';
-
-      // リストのアクティブ状態をリセット
-      document.querySelectorAll('.dashboard-list li').forEach(el => el.classList.remove('active'));
-
-      await fetchToken(selectedUser);
-    }
-
-    // 初期化処理
-    async function initPortal() {
-      logMessage('--- ポータル初期化開始 ---');
+      log(`--- ユーザー切り替え: ${selectedUser} ---`);
       try {
-        const initialUser = document.getElementById('userSelect').value;
-        await fetchToken(initialUser);
-        renderDashboardList();
+        await fetchJwtToken(selectedUser);
+        if (currentSelectedUrl) {
+          const activeLi = document.querySelector('.dashboard-list li.active');
+          selectDashboard(currentSelectedUrl, activeLi);
+        }
       } catch (err) {
-        document.getElementById('vizContainer').innerHTML = `<p style="color:red;">エラーが発生しました。デバッグパネルを確認してください。</p>`;
+        log(`ユーザー切り替え失敗`, 'error');
       }
     }
 
-    window.onload = initPortal;
+    async function init() {
+      log('--- ポータル初期化シーケンス開始 ---');
+      const initialUser = document.getElementById('userSelect').value;
+      try {
+        await fetchJwtToken(initialUser);
+        await fetchDashboards();
+      } catch (err) {
+        log(`初期化シーケンス停止: ${err.message}`, 'error');
+      }
+    }
+
+    window.onload = init;
   </script>
 </body>
 
