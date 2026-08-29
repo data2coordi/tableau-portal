@@ -3,13 +3,14 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>Salesforce Enterprise Web Portal Demo (Debug)</title>
+  <title>Salesforce Enterprise Web Portal Demo</title>
   <script type="module"
     src="https://prod-apnortheast-a.online.tableau.com/javascripts/api/tableau.embedding.3.latest.min.js"></script>
   <style>
     body {
-      font-family: monospace;
-      margin: 20px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
       background: #f4f6f9;
     }
 
@@ -18,25 +19,78 @@
       padding: 20px;
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
     }
 
+    /* 2ペインのレイアウト設定 */
+    .portal-container {
+      display: flex;
+      gap: 20px;
+    }
+
+    .sidebar {
+      width: 300px;
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ダッシュボードリストのスタイル */
+    .dashboard-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .dashboard-list li {
+      padding: 12px 15px;
+      margin-bottom: 8px;
+      background: #f8f9fa;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .dashboard-list li:hover {
+      background: #e2e6ea;
+    }
+
+    .dashboard-list li.active {
+      background: #0176d3;
+      color: #fff;
+      border-color: #0176d3;
+    }
+
+    /* Salesforce Blue にハイライト */
+
     #vizContainer {
-      margin-top: 20px;
       background: #fff;
       padding: 10px;
       border-radius: 8px;
       min-height: 750px;
       border: 1px dashed #ccc;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
     #debugPanel {
-      margin-top: 20px;
       background: #1e1e1e;
       color: #00ff00;
       padding: 15px;
       border-radius: 8px;
-      height: 200px;
+      height: 150px;
       overflow-y: auto;
+      font-family: monospace;
     }
 
     .error {
@@ -51,20 +105,53 @@
 
 <body>
   <div class="header">
-    <h2>Salesforce / Tableau TA Demo Portal (Debug)</h2>
-    <p>Target User: data2coordi@gmail.com</p>
+    <h2>Salesforce / Tableau TA Demo Portal</h2>
+    <p>このポータルは Connected Apps (JWT) を利用した埋め込みと、動的 RLS をデモします。</p>
+
+    <div
+      style="display: flex; align-items: center; gap: 10px; background: #f0f8ff; padding: 10px; border-radius: 4px; border: 1px solid #cce5ff;">
+      <label for="userSelect"><strong>Simulate Login User (RLSテスト用):</strong></label>
+      <select id="userSelect" style="padding: 5px; font-size: 14px; width: 250px;">
+        <option value="h95mori@gmail.com">h95mori@gmail.com (All Access)</option>
+        <option value="data2coordi@gmail.com">data2coordi@gmail.com (Restricted)</option>
+      </select>
+      <button onclick="applyUserChange()"
+        style="padding: 6px 15px; background: #0176d3; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+        ユーザーを切り替えて再認証
+      </button>
+    </div>
   </div>
 
-  <div id="debugPanel">
-    <div>[System] デバッグパネル起動...</div>
-  </div>
+  <div class="portal-container">
+    <div class="sidebar">
+      <h3>Dashboards</h3>
+      <ul id="dashboardList" class="dashboard-list">
+      </ul>
+    </div>
 
-  <div id="vizContainer">
-    <p style="color:#888;">ダッシュボード描画待機中...</p>
+    <div class="main-content">
+      <div id="debugPanel">
+        <div>[System] デバッグパネル起動...</div>
+      </div>
+
+      <div id="vizContainer">
+        <p style="color:#888; text-align:center; padding-top: 20px;">左側のメニューからダッシュボードを選択してください。</p>
+      </div>
+    </div>
   </div>
 
   <script>
-    // デバッグログ出力用関数
+    // ▼ 要件4対応: 表示したいダッシュボードのリストを定義します ▼
+    // ご自身の Tableau Online 上の URL (Shareリンク等) に書き換えてください。
+    const DASHBOARDS = [
+      { id: '1', name: 'Sales Overview', url: 'https://prod-apnortheast-a.online.tableau.com/t/h95mori-a84c708353/views/my/1_1' },
+      { id: '2', name: 'Regional Performance', url: 'https://prod-apnortheast-a.online.tableau.com/t/h95mori-a84c708353/views/Sample_Regional/Dashboard1' },
+      { id: '3', name: 'Executive Summary', url: 'https://prod-apnortheast-a.online.tableau.com/t/h95mori-a84c708353/views/Sample_Exec/Summary' }
+    ];
+
+    let globalJwtToken = null;
+
+    // デバッグログ出力
     function logMessage(msg, type = 'normal') {
       const panel = document.getElementById('debugPanel');
       const time = new Date().toLocaleTimeString();
@@ -73,65 +160,103 @@
       if (type === 'error') div.className = 'error';
       if (type === 'success') div.className = 'success';
       panel.appendChild(div);
-      panel.scrollTop = panel.scrollHeight;
-      console.log(`[${time}] ${msg}`);
+      panel.scrollTop = panel.scrollHeight; // 自動スクロール
     }
 
-    async function initPortal() {
-      const container = document.getElementById('vizContainer');
-      logMessage('initPortal() 開始');
-
+    // JWTトークンの取得
+    async function fetchToken(targetUser) {
+      logMessage(`1. ユーザー [${targetUser}] としてトークン取得リクエストを送信...`);
       try {
-        logMessage('1. APIエンドポイント (/api/get-tableau-token) へリクエスト送信...');
         const response = await fetch('/api/get-tableau-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ targetUser: 'h95mori@gmail.com' })
+          body: JSON.stringify({ targetUser: targetUser })
         });
 
-        logMessage(`2. レスポンス受信 (Status: ${response.status})`);
-
-        if (!response.ok) {
-          throw new Error(`HTTP Error Status: ${response.status}`);
-        }
-
+        if (!response.ok) throw new Error(`HTTP Error Status: ${response.status}`);
         const data = await response.json();
 
-        if (!data.token) {
-          throw new Error('JWTトークンがレスポンスに含まれていません');
-        }
-        logMessage(`3. JWTトークン取得成功 (先頭10文字: ${data.token.substring(0, 10)}...)`, 'success');
+        if (!data.token) throw new Error('JWTトークンがレスポンスに含まれていません');
 
-        container.innerHTML = ''; // コンテナをクリア
-        logMessage('4. <tableau-viz> コンポーネントを生成中...');
-
-        const viz = document.createElement('tableau-viz');
-        viz.setAttribute('id', 'tableauViz');
-
-        const targetSrc = 'https://prod-apnortheast-a.online.tableau.com/t/h95mori-a84c708353/views/my/1_1';
-        logMessage(`5. ダッシュボードURLセット: ${targetSrc}`);
-
-        viz.setAttribute('src', targetSrc);
-        viz.setAttribute('token', data.token);
-        viz.setAttribute('toolbar', 'bottom');
-        viz.setAttribute('width', '100%');
-        viz.setAttribute('height', '750px');
-
-        // イベントリスナーの追加
-        viz.addEventListener('firstinteractive', () => {
-          logMessage('★ SUCCESS: ダッシュボードの描画(firstinteractive)が完了しました', 'success');
-        });
-
-        viz.addEventListener('vizloaderror', (e) => {
-          logMessage(`★ ERROR (vizloaderror): 描画エラー発生。詳細: ${JSON.stringify(e.detail)}`, 'error');
-        });
-
-        container.appendChild(viz);
-        logMessage('6. <tableau-viz> を DOM に追加完了。描画を待機します...');
-
+        globalJwtToken = data.token;
+        logMessage(`2. JWTトークン取得成功 (Sub: ${targetUser})`, 'success');
       } catch (err) {
-        logMessage(`CRITICAL ERROR: ${err.message}`, 'error');
-        container.innerHTML = `<p style="color:red;">エラーが発生しました: ${err.message}</p>`;
+        logMessage(`CRITICAL ERROR: トークン取得失敗 - ${err.message}`, 'error');
+        throw err;
+      }
+    }
+
+    // サイドバーにダッシュボードリストを描画
+    function renderDashboardList() {
+      const listContainer = document.getElementById('dashboardList');
+      listContainer.innerHTML = '';
+
+      DASHBOARDS.forEach(dashboard => {
+        const li = document.createElement('li');
+        li.textContent = dashboard.name;
+        li.onclick = () => loadTableauViz(dashboard.url, li);
+        listContainer.appendChild(li);
+      });
+      logMessage('3. ダッシュボード一覧をサイドバーに描画しました。');
+    }
+
+    // 指定されたURLのダッシュボードを描画
+    function loadTableauViz(targetSrc, clickedElement) {
+      if (!globalJwtToken) {
+        logMessage('エラー: トークンが取得できていません。', 'error');
+        return;
+      }
+
+      // 選択状態のUI更新
+      document.querySelectorAll('.dashboard-list li').forEach(el => el.classList.remove('active'));
+      clickedElement.classList.add('active');
+
+      logMessage(`4. ダッシュボード切り替え: ${targetSrc}`);
+
+      const container = document.getElementById('vizContainer');
+      container.innerHTML = ''; // 既存のVizを破棄
+
+      // 新しい <tableau-viz> 要素を作成
+      const viz = document.createElement('tableau-viz');
+      viz.setAttribute('src', targetSrc);
+      viz.setAttribute('token', globalJwtToken);
+      viz.setAttribute('toolbar', 'bottom');
+      viz.setAttribute('width', '100%');
+      viz.setAttribute('height', '750px');
+
+      viz.addEventListener('firstinteractive', () => {
+        logMessage(`★ SUCCESS: ダッシュボード描画完了`, 'success');
+      });
+
+      viz.addEventListener('vizloaderror', (e) => {
+        logMessage(`★ ERROR: 描画エラー発生 - ${JSON.stringify(e.detail)}`, 'error');
+      });
+
+      container.appendChild(viz);
+      logMessage('5. DOM に追加しました。描画を待機中...');
+    }
+
+    // ユーザー切り替えボタン押下時
+    async function applyUserChange() {
+      const selectedUser = document.getElementById('userSelect').value;
+      const container = document.getElementById('vizContainer');
+      container.innerHTML = '<p style="color:#888; text-align:center; padding-top: 20px;">ユーザーを切り替え中... 左側のメニューから再度選択してください。</p>';
+
+      // リストのアクティブ状態をリセット
+      document.querySelectorAll('.dashboard-list li').forEach(el => el.classList.remove('active'));
+
+      await fetchToken(selectedUser);
+    }
+
+    // 初期化処理
+    async function initPortal() {
+      logMessage('--- ポータル初期化開始 ---');
+      try {
+        const initialUser = document.getElementById('userSelect').value;
+        await fetchToken(initialUser);
+        renderDashboardList();
+      } catch (err) {
+        document.getElementById('vizContainer').innerHTML = `<p style="color:red;">エラーが発生しました。デバッグパネルを確認してください。</p>`;
       }
     }
 
