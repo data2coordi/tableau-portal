@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Salesforce Enterprise Web Portal Demo - Tableau TA</title>
-  <!-- Tableau Embedding API v3 (推奨グローバルCDN) -->
+  <!-- Tableau Embedding API v3 -->
   <script type="module" src="https://embedding.tableauusercontent.com/tableau.embedding.3.latest.min.js"></script>
   <style>
     body {
@@ -36,31 +36,37 @@
       font-size: 14px;
     }
 
-    .user-control {
+    .control-panel {
       display: flex;
-      align-items: center;
-      gap: 12px;
+      gap: 20px;
+      flex-wrap: wrap;
       background: #eef4fe;
       padding: 12px 16px;
       border-radius: 6px;
       border: 1px solid #cce0ff;
     }
 
-    .user-control label {
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .control-group label {
       font-weight: bold;
       font-size: 14px;
       color: #004085;
     }
 
-    .user-control select {
+    .control-group input,
+    .control-group select {
       padding: 6px 12px;
       font-size: 14px;
       border-radius: 4px;
       border: 1px solid #b8daff;
-      width: 280px;
     }
 
-    .user-control button {
+    .control-group button {
       padding: 7px 18px;
       background: #0176d3;
       color: white;
@@ -141,7 +147,6 @@
       text-align: center;
     }
 
-    /* ログパネルを常に視認可能に配置 */
     .debug-container {
       background: #1e1e1e;
       color: #d4d4d4;
@@ -196,18 +201,28 @@
 </head>
 
 <body>
-
   <div class="header">
     <h1>Salesforce / Tableau Technical Architect Demo Portal</h1>
-    <p>Connected Apps (JWT) 認証、Tableau REST API (動的ビュー取得)、および 行レベルセキュリティ (RLS) の実証環境</p>
+    <p>Connected Apps (JWT) 認証、Tableau REST API (動的ビュー取得)、および 行レベルセキュリティ (RLS) と JS フィルター の実証環境</p>
 
-    <div class="user-control">
-      <label for="userSelect">Simulate Login User (RLSテスト用):</label>
-      <select id="userSelect">
-        <option value="h95mori@gmail.com">h95mori@gmail.com (All Access User)</option>
-        <option value="data2coordi@gmail.com">data2coordi@gmail.com (Restricted User)</option>
-      </select>
-      <button onclick="switchUserAndReload()">ユーザーを切り替えて再認証</button>
+    <div class="control-panel">
+      <!-- Option 2: ユーザー切り替え (RLS) -->
+      <div class="control-group">
+        <label for="userSelect">Simulate Login User (RLSテスト用):</label>
+        <select id="userSelect">
+          <option value="h95mori@gmail.com">h95mori@gmail.com (All Access User)</option>
+          <option value="data2coordi@gmail.com">data2coordi@gmail.com (Restricted User)</option>
+        </select>
+        <button onclick="switchUserAndReload()">ユーザーを切り替えて再認証</button>
+      </div>
+
+      <!-- Option 1: JavaScript ベースのフィルター -->
+      <div class="control-group">
+        <label>JS Filter:</label>
+        <input type="text" id="filterField" placeholder="フィールド名 (例: Region)" style="width: 140px;">
+        <input type="text" id="filterValue" placeholder="値 (例: East)" style="width: 120px;">
+        <button onclick="applyJsFilter()">適用</button>
+      </div>
     </div>
   </div>
 
@@ -244,11 +259,9 @@
       const time = new Date().toLocaleTimeString();
       const item = document.createElement('div');
       item.className = 'log-item';
-
       let typeClass = 'log-info';
       if (type === 'success') typeClass = 'log-success';
       if (type === 'error') typeClass = 'log-error';
-
       item.innerHTML = `<span class="log-time">[${time}]</span><span class="${typeClass}">${msg}</span>`;
       panel.appendChild(item);
       panel.scrollTop = panel.scrollHeight;
@@ -258,7 +271,6 @@
       document.getElementById('debugPanel').innerHTML = '';
     }
 
-    // JSエラーをログパネルにキャッチさせる
     window.onerror = function (msg, url, lineNo, columnNo, error) {
       log(`[Uncaught JS Error] ${msg} at line ${lineNo}`, 'error');
       return false;
@@ -273,10 +285,8 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ targetUser: username })
         });
-
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-
         currentJwtToken = data.token;
         log(`[Auth Step 1 OK] JWT取得成功`, 'success');
         return data.token;
@@ -286,18 +296,14 @@
       }
     }
 
-    // REST API ダッシュボード一覧取得処理
+    // ダッシュボード一覧取得処理
     async function fetchDashboards() {
       log(`[REST API Step 2] /api/get-dashboards を呼び出し中...`);
       const listContainer = document.getElementById('dashboardList');
-
       try {
         const res = await fetch('/api/get-dashboards', { method: 'POST' });
         const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.error || `HTTP Status ${res.status}`);
-        }
+        if (!res.ok) throw new Error(data.error || `HTTP Status ${res.status}`);
 
         const dashboards = data.dashboards;
         listContainer.innerHTML = '';
@@ -313,14 +319,9 @@
           li.textContent = dash.name;
           li.onclick = () => selectDashboard(dash.url, li);
           listContainer.appendChild(li);
-
-          if (index === 0) {
-            selectDashboard(dash.url, li);
-          }
+          if (index === 0) selectDashboard(dash.url, li);
         });
-
         log(`[REST API Step 2 OK] ${dashboards.length} 件のダッシュボードを描画しました`, 'success');
-
       } catch (err) {
         log(`[REST API Step 2 FAIL] 一覧取得に失敗: ${err.message}`, 'error');
         listContainer.innerHTML = `<li style="color:red; padding:10px;">エラー: ${err.message}</li>`;
@@ -332,13 +333,11 @@
         log(`[Viz Error] Valid JWT token is missing`, 'error');
         return;
       }
-
       currentSelectedUrl = url;
       document.querySelectorAll('.dashboard-list li').forEach(el => el.classList.remove('active'));
       if (element) element.classList.add('active');
 
       log(`[Embedding v3] View表示要求: ${url}`);
-
       const container = document.getElementById('vizContainer');
       container.innerHTML = '';
 
@@ -352,12 +351,44 @@
       viz.addEventListener('firstinteractive', () => {
         log(`[Embedding v3 Event] 描画完了 (firstinteractive)`, 'success');
       });
-
       viz.addEventListener('vizloaderror', (evt) => {
         log(`[Embedding v3 Event Error] 描画エラー: ${JSON.stringify(evt.detail)}`, 'error');
       });
 
       container.appendChild(viz);
+    }
+
+    // JS フィルターの適用処理 (Option 1)
+    async function applyJsFilter() {
+      const viz = document.querySelector('tableau-viz');
+      if (!viz || !viz.workbook) {
+        log(`[Filter Error] ダッシュボードがまだ読み込まれていません`, 'error');
+        return;
+      }
+
+      const fieldName = document.getElementById('filterField').value;
+      const filterValue = document.getElementById('filterValue').value;
+
+      if (!fieldName || !filterValue) {
+        alert("フィールド名と値を入力してください");
+        return;
+      }
+
+      log(`[Filter] ${fieldName} = ${filterValue} を適用中...`);
+      try {
+        const sheet = viz.workbook.activeSheet;
+        // Dashboardの場合、内包されるすべてのワークシートにフィルターを適用
+        if (sheet.sheetType === 'dashboard') {
+          for (let ws of sheet.worksheets) {
+            await ws.applyFilterAsync(fieldName, [filterValue], 'replace');
+          }
+        } else {
+          await sheet.applyFilterAsync(fieldName, [filterValue], 'replace');
+        }
+        log(`[Filter Success] フィルターを適用しました`, 'success');
+      } catch (err) {
+        log(`[Filter Error] フィルターの適用に失敗しました: ${err.message}`, 'error');
+      }
     }
 
     async function switchUserAndReload() {
