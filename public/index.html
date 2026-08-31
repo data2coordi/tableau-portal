@@ -136,15 +136,25 @@
       min-width: 0;
     }
 
+
+    /* --- 修正後 --- */
     #vizContainer {
       background: #fff;
       padding: 15px;
       border-radius: 8px;
-      min-height: 500px;
+      min-height: 750px;
+      /* 高さを少し広げて見やすく */
       border: 1px solid #e0e0e0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: 100%;
+      box-sizing: border-box;
+      /* flex, align-items, justify-content を削除 */
+    }
+
+    /* tableau-viz 要素自体のスタイルを強制指定 */
+    tableau-viz {
+      width: 100%;
+      height: 750px;
+      display: block;
     }
 
     .placeholder-text {
