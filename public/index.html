@@ -225,8 +225,7 @@
       <div class="control-group">
         <label for="userSelect">Simulate Login User:</label>
         <select id="userSelect">
-          <option value="h95mori@gmail.com">h95mori@gmail.com (All Access User)</option>
-          <option value="data2coordi@gmail.com">data2coordi@gmail.com (Restricted User)</option>
+          <option value="">(ユーザー読み込み中...)</option>
         </select>
         <button onclick="switchUserAndReload()">ユーザーを切り替えて再認証</button>
       </div>
@@ -428,16 +427,59 @@
       }
     }
 
+    // ユーザー一覧取得処理 (追加)
+    async function fetchUsers() {
+      log(`[REST API Step 0] /api/get-users を呼び出してユーザー一覧を取得中...`);
+      const userSelect = document.getElementById('userSelect');
+      try {
+        const res = await fetch('/api/get-users');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP Status ${res.status}`);
+
+        const users = data.users;
+        userSelect.innerHTML = '';
+
+        if (!users || users.length === 0) {
+          userSelect.innerHTML = '<option value="">(ユーザーが存在しません)</option>';
+          log(`[REST API Step 0 WARN] ユーザーが 0 件です`, 'error');
+          return;
+        }
+
+        users.forEach(u => {
+          const option = document.createElement('option');
+          option.value = u.email;
+          option.textContent = `${u.fullName} (${u.email}) [${u.siteRole}]`;
+          userSelect.appendChild(option);
+        });
+
+        log(`[REST API Step 0 OK] ${users.length} 名のユーザーを取得・描画しました`, 'success');
+      } catch (err) {
+        log(`[REST API Step 0 FAIL] ユーザー一覧取得に失敗: ${err.message}`, 'error');
+        userSelect.innerHTML = `<option value="">(取得エラー)</option>`;
+      }
+    }
+
+    // 初期化シーケンス (修正: fetchUsers を最初にする)
     async function init() {
       log('--- ポータル初期化シーケンス開始 ---');
-      const initialUser = document.getElementById('userSelect').value;
       try {
-        await fetchJwtToken(initialUser);
+        // 1. まず Tableau Online から最新ユーザー一覧を取得
+        await fetchUsers();
+
+        // 2. 選択された最初のユーザーで JWT を発行
+        const initialUser = document.getElementById('userSelect').value;
+        if (initialUser) {
+          await fetchJwtToken(initialUser);
+        }
+
+        // 3. ダッシュボード一覧を取得して描画
         await fetchDashboards();
       } catch (err) {
         log(`初期化シーケンス停止: ${err.message}`, 'error');
       }
     }
+
+    window.onload = init;
 
     window.onload = init;
   </script>

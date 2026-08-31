@@ -130,6 +130,85 @@ app.post('/api/get-dashboards', async (req, res) => {
   }
 });
 
+// 3. Tableau REST API 経由でユーザー一覧を動的に取得するエンドポイント (デモ用)
+app.get('/api/get-users', async (req, res) => {
+  console.log('\n--- [REST API Request] Fetching Users from Tableau Online ---');
+
+  if (!TABLEAU_PAT_NAME || !TABLEAU_PAT_SECRET) {
+    console.warn('[REST API Warning] PAT missing. Returning fallback user list.');
+    return res.json({
+      users: [
+        { id: '1', email: 'h95mori@gmail.com', name: 'h95mori@gmail.com (Fallback)' },
+        { id: '2', email: 'data2coordi@gmail.com', name: 'data2coordi@gmail.com (Fallback)' }
+      ]
+    });
+  }
+
+  try {
+    // Step A: REST API 認証 (signin)
+    const signinUrl = `${TABLEAU_SERVER_URL}/api/3.20/auth/signin`;
+    const authRes = await fetch(signinUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        credentials: {
+          personalAccessTokenName: TABLEAU_PAT_NAME,
+          personalAccessTokenSecret: TABLEAU_PAT_SECRET,
+          site: { contentUrl: TABLEAU_SITE_NAME }
+        }
+      })
+    });
+
+    const authData = await authRes.json();
+    if (!authRes.ok) {
+      console.error('[REST API Auth Failed]', JSON.stringify(authData));
+      return res.status(authRes.status).json({ error: 'Tableau REST Auth Failed' });
+    }
+
+    const restToken = authData.credentials.token;
+    const siteId = authData.credentials.site.id;
+
+    // Step B: Get Users on Site API によるユーザー一覧取得
+    const usersUrl = `${TABLEAU_SERVER_URL}/api/3.20/sites/${siteId}/users`;
+    const usersRes = await fetch(usersUrl, {
+      method: 'GET',
+      headers: { 'X-Tableau-Auth': restToken, 'Accept': 'application/json' }
+    });
+
+    const usersData = await usersRes.json();
+    if (!usersRes.ok) {
+      return res.status(usersRes.status).json({ error: 'Get Users Failed' });
+    }
+
+    // Step C: 取得結果を整形 (Unlicensed ユーザーやメールが無いユーザーのハンドリング)
+    const rawUsers = usersData.users?.user || [];
+    const users = rawUsers
+      .filter(u => u.siteRole !== 'Unlicensed') // ライセンスなしユーザーを除外したい場合は追加
+      .map(u => {
+        // email 属性がない場合は name (アカウント名) をフォールバックに使用
+        const userIdentifier = u.email || u.name;
+        return {
+          id: u.id,
+          email: userIdentifier,
+          siteRole: u.siteRole,
+          fullName: u.fullName || u.name
+        };
+      });
+
+    // サインアウト (非同期)
+    fetch(`${TABLEAU_SERVER_URL}/api/3.20/auth/signout`, {
+      method: 'POST',
+      headers: { 'X-Tableau-Auth': restToken }
+    }).catch(() => { });
+
+    res.json({ users });
+
+  } catch (error) {
+    console.error('[REST API Users Exception]', error.message);
+    res.status(500).json({ error: `Server Exception: ${error.message}` });
+  }
+});
+
 const PORT = process.env.PORT || 80;
 app.listen(PORT, () => {
   console.log(`==================================================`);
