@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Salesforce Enterprise Web Portal Demo - Tableau TA</title>
+  <title>Web Portal Demo - Tableau</title>
   <!-- Tableau Embedding API v3 -->
   <script type="module"
     src="https://prod-apnortheast-a.online.tableau.com/javascripts/api/tableau.embedding.3.latest.min.js"></script>
@@ -218,13 +218,12 @@
 
 <body>
   <div class="header">
-    <h1>Salesforce / Tableau Technical Architect Demo Portal - v1</h1>
-    <p>Connected Apps (JWT) 認証、Tableau REST API (動的ビュー取得)、および 行レベルセキュリティ (RLS) と JS フィルター の実証環境</p>
+    <h1>Tableau Demo Portal - v1</h1>
 
     <div class="control-panel">
       <!-- Option 2: ユーザー切り替え (RLS) -->
       <div class="control-group">
-        <label for="userSelect">Simulate Login User (RLSテスト用):</label>
+        <label for="userSelect">Simulate Login User:</label>
         <select id="userSelect">
           <option value="h95mori@gmail.com">h95mori@gmail.com (All Access User)</option>
           <option value="data2coordi@gmail.com">data2coordi@gmail.com (Restricted User)</option>
@@ -244,7 +243,7 @@
 
   <div class="portal-container">
     <div class="sidebar">
-      <h3>Available Dashboards</h3>
+      <h3>ダッシュボード一覧</h3>
       <ul id="dashboardList" class="dashboard-list">
         <li class="placeholder-text" id="statusListText">読み込み中...</li>
       </ul>
@@ -344,14 +343,20 @@
       }
     }
 
-    function selectDashboard(url, element) {
-      if (!currentJwtToken) {
-        log(`[Viz Error] Valid JWT token is missing`, 'error');
-        return;
-      }
+    // selectDashboard 関数を async に変更し、表示直前に JWT を再取得する
+    async function selectDashboard(url, element) {
       currentSelectedUrl = url;
       document.querySelectorAll('.dashboard-list li').forEach(el => el.classList.remove('active'));
       if (element) element.classList.add('active');
+
+      // ★ ユーザー選択欄から現在のユーザーを取得して、切り替え時に毎回最新のJWTを発行する
+      const selectedUser = document.getElementById('userSelect').value;
+      try {
+        await fetchJwtToken(selectedUser);
+      } catch (err) {
+        log(`[Viz Error] トークン更新に失敗したため描画を中止します`, 'error');
+        return;
+      }
 
       log(`[Embedding v3] View表示要求: ${url}`);
       const container = document.getElementById('vizContainer');
@@ -359,10 +364,11 @@
 
       const viz = document.createElement('tableau-viz');
       viz.setAttribute('src', url);
-      viz.setAttribute('token', currentJwtToken);
+      viz.setAttribute('token', currentJwtToken); // 最新のトークンをセット
       viz.setAttribute('toolbar', 'bottom');
+      viz.setAttribute('device', 'desktop');
       viz.setAttribute('width', '100%');
-      viz.setAttribute('height', '700px');
+      viz.setAttribute('height', '750px');
 
       viz.addEventListener('firstinteractive', () => {
         log(`[Embedding v3 Event] 描画完了 (firstinteractive)`, 'success');
@@ -373,6 +379,7 @@
 
       container.appendChild(viz);
     }
+
 
     // JS フィルターの適用処理 (Option 1)
     async function applyJsFilter() {
