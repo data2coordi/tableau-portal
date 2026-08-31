@@ -1,0 +1,54 @@
+◇ injected env (8) from .env // tip: ⌘ enable debugging { debug: true }
+==================================================
+Tableau TA Demo Portal Server is running on port 80
+Target Tableau Server: https://prod-apnortheast-a.online.tableau.com
+Target Site ContentUrl: h95mori-a84c708353
+==================================================
+
+--- [REST API Request] Fetching Users from Tableau Online ---
+
+--- [JWT Gen Request] Target User (sub): h95mori@gmail.com ---
+[JWT Success] Successfully generated JWT for user: h95mori@gmail.com
+
+--- [REST API Request] Fetching Views from Tableau Online ---
+
+--- [JWT Gen Request] Target User (sub): h95mori@gmail.com ---
+[JWT Success] Successfully generated JWT for user: h95mori@gmail.com
+
+--- [REST API Request] Fetching Users from Tableau Online ---
+
+--- [JWT Gen Request] Target User (sub): h95mori@gmail.com ---
+[JWT Success] Successfully generated JWT for user: h95mori@gmail.com
+
+--- [REST API Request] Fetching Views from Tableau Online ---
+
+--- [JWT Gen Request] Target User (sub): h95mori@gmail.com ---
+[JWT Success] Successfully generated JWT for user: h95mori@gmail.com
+
+--- [REST API Request] Fetching Users from Tableau Online ---
+
+--- [JWT Gen Request] Target User (sub): h95mori@gmail.com ---
+[JWT Success] Successfully generated JWT for user: h95mori@gmail.com
+
+--- [REST API Request] Fetching Views from Tableau Online ---
+
+--- [JWT Gen Request] Target User (sub): h95mori@gmail.com ---
+[JWT Success] Successfully generated JWT for user: h95mori@gmail.com
+
+--- [JWT Gen Request] Target User (sub): h95mori@gmail.com ---
+[JWT Success] Successfully generated JWT for user: h95mori@gmail.com
+
+--- [JWT Gen Request] Target User (sub): user1@example.com ---
+[JWT Success] Successfully generated JWT for user: user1@example.com
+
+--- [JWT Gen Request] Target User (sub): user1@example.com ---
+[JWT Success] Successfully generated JWT for user: user1@example.com
+
+--- [JWT Gen Request] Target User (sub): user1@example.com ---
+[JWT Success] Successfully generated JWT for user: user1@example.com
+
+--- [JWT Gen Request] Target User (sub): user1@example.com ---
+[JWT Success] Successfully generated JWT for user: user1@example.com
+
+--- [JWT Gen Request] Target User (sub): user1@example.com ---
+[JWT Success] Successfully generated JWT for user: user1@example.com
