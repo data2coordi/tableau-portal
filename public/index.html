@@ -470,11 +470,6 @@
         // 1. まず Tableau Online から最新ユーザー一覧を取得
         await fetchUsers();
 
-        // 2. 選択された最初のユーザーで JWT を発行
-        const initialUser = document.getElementById('userSelect').value;
-        if (initialUser) {
-          await fetchJwtToken(initialUser);
-        }
 
         // 3. ダッシュボード一覧を取得して描画
         await fetchDashboards();
